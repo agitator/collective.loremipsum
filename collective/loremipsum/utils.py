@@ -40,6 +40,10 @@ import random
 import transaction
 import urllib
 
+from plone.app.contenttypes.behaviors.leadimage import ILeadImage
+from plone.namedfile.field import NamedBlobImage
+
+
 try:
     from plone.formwidget.recurrence.z3cform.interfaces import IRecurrenceWidget
     HAS_RECURRENCE_WIDGET = True
@@ -161,6 +165,7 @@ def create_object(context, portal_type, data):
     unique_id = generate_unique_id(context, title, portal_type)
     args = {'id': unique_id}
     if portal_type in ['Image', 'File']:
+        import pdb; pdb.set_trace()
         myfile = StringIO(decodestring(
             'R0lGODlhAQABAPAAAPj8+AAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='))
         ext = portal_type == 'Image' and 'gif' or 'dat'
@@ -362,6 +367,34 @@ def populate_dexterity(obj, data):
                     dm.set(IDataConverter(widget).toFieldValue(value))
                 except TypeError:
                     dm.set(value)
+
+            # # subject
+            # subject = obj.getField('subject')
+            # if subject and data.get('subjects'):
+            #     subjects = data.get('subjects', '').splitlines() or get_subjects()
+            #     random.shuffle(subjects)
+            #     subject.set(obj, subjects[:4])
+
+        if schema.getName() == 'ILeadImage':
+            import pdb; pdb.set_trace()
+            # Set LeadImages
+            if ILeadImage.providedBy(obj) and data.get('generate_images'):
+                obj = ILeadImage(obj)
+            # generate_image = data.get('generate_images') or obj.portal_type == 'Image'
+            # if obj.getField('image') and generate_image:
+                field = obj.image
+                name = data.get('generate_images_service')
+                params = data.get('generate_images_params')
+                getter = component.getUtility(IFakeImageGetter, name=name)
+                title = get_text_line()
+                img_content = getter.get(params=params, text=title)
+                if img_content:
+                    obj.image = NamedBlobImage()
+                    obj.image.data = StringIO(decodestring(img_content))
+                    obj.image.filename = name
+                    obj.image.contentType= 'image/jpeg'
+                    log.info('[%s] got dummy image for %s'
+                             % (getter.name, '/'.join(obj.getPhysicalPath())))
 
 
 def populate_archetype(obj, data):
